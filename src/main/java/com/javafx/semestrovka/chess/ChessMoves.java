@@ -153,7 +153,7 @@ public class ChessMoves {
         return moves;
     }
 
-    public static boolean isCheck(String type, int row, int col) {
+    public static boolean isCheckCurrentPiece(String type, int row, int col) {
         List<int[]> moves = getUniversalMoves(type, row, col);
         for (int[] move: moves) {
             if (isOccupied(move[0], move[1])) {
@@ -166,7 +166,7 @@ public class ChessMoves {
         return false;
     }
 
-    public static boolean isCheckForKing(String type, int row, int col) {
+    public static boolean isCheckByKing(String type, int row, int col) {
         // Find the opponent's moves
         boolean isWhite = ChessBoard.isWhitePiece(row, col);
         List<int[]> opponentMoves = getAllMoves(!isWhite);
@@ -221,7 +221,7 @@ public class ChessMoves {
         return row >= 0 && row < 8 && col >= 0 && col < 8;
     }
 
-    public static boolean isCheck(int kingRow, int kingCol, boolean isWhite) {
+    public static boolean isCheckCurrentPiece(int kingRow, int kingCol, boolean isWhite) {
         List<int[]> opponentMoves = getAllMoves(!isWhite);
         for (int[] move : opponentMoves) {
             if (move[0] == kingRow && move[1] == kingCol) {
@@ -233,14 +233,14 @@ public class ChessMoves {
 
     public static boolean isCheckmate(int kingRow, int kingCol, boolean isWhite) {
         // Check if the king is in check
-        if (!isCheck(kingRow, kingCol, isWhite)) {
+        if (!isCheckCurrentPiece(kingRow, kingCol, isWhite)) {
             return false;
         }
 
         // Check if the king can escape to any square
         List<int[]> kingMoves = getKingMoves(kingRow, kingCol);
         for (int[] move : kingMoves) {
-            if (!isCheck(move[0], move[1], isWhite)) {
+            if (!isCheckCurrentPiece(move[0], move[1], isWhite)) {
                 return false;
             }
         }
@@ -251,7 +251,7 @@ public class ChessMoves {
             List<int[]> moves = getUniversalMoves(pieces[move[0]][move[1]], move[0], move[1]);
             moves.removeIf(m -> m[0] == kingRow && m[1] == kingCol);
             for (int[] blockingMove : moves) {
-                if (!isCheck(blockingMove[0], blockingMove[1], isWhite)) {
+                if (!isCheckCurrentPiece(blockingMove[0], blockingMove[1], isWhite)) {
                     return false;
                 }
             }

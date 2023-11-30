@@ -1,5 +1,6 @@
 package com.javafx.semestrovka;
 
+import com.javafx.semestrovka.chess.ChessBoardInterface;
 import com.javafx.semestrovka.chess.ChessMoves;
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -17,9 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-import static com.javafx.semestrovka.chess.ChessMoves.isCheck;
-import static com.javafx.semestrovka.chess.ChessMoves.isCheckForKing;
-
+import static com.javafx.semestrovka.chess.ChessMoves.isCheckByKing;
 
 public class ChessBoard extends Application {
     public static String[][] pieces = new String[8][8];
@@ -28,17 +27,18 @@ public class ChessBoard extends Application {
     private static final Button[][] squares = new Button[8][8];
     private static final String[] pieceNames = {"R", "N", "B", "Q", "K", "B", "N", "R"};
     private static final String pawnName = "P";
-
     private static final String sourceRoot = "/com/javafx/semestrovka/alpha/";
 
     private List<int[]> moves;
     private static final List<String> blackPieces = new ArrayList<>();
     private static final List<String> whitePieces = new ArrayList<>();
-
+    private static int[][] kingCoordinates = new int[2][2];
     private boolean nowIsWhite = true;
 
     private int selectedRow = -1;
+    private int oldSelectedRow = -1;
     private int selectedCol = -1;
+    private int oldSelectedCol = -1;
 
     public static void main(String[] args) {
         launch(args);
@@ -103,6 +103,12 @@ public class ChessBoard extends Application {
                 pieces[6][col] = "w" + pawnName;
                 pieceImage = new Image(Objects.requireNonNull(getClass().getResourceAsStream(sourceRoot + "b" + pieceNames[col] + ".png")));
                 squares[0][col].setGraphic(new ImageView(pieceImage));
+                if (pieceNames[col].equals("K")) {
+                    kingCoordinates[0][0] = 7;
+                    kingCoordinates[0][1] = col;
+                    kingCoordinates[1][0] = 0;
+                    kingCoordinates[1][1] = col;
+                }
                 pieces[0][col] = "b" + pieceNames[col];
                 pieceImage = new Image(Objects.requireNonNull(getClass().getResourceAsStream(sourceRoot + "b" + pawnName + ".png")));
                 squares[1][col].setGraphic(new ImageView(pieceImage));
@@ -133,7 +139,7 @@ public class ChessBoard extends Application {
                     moves = ChessMoves.getUniversalMoves(type, row, col);
                     assert type != null;
                     moveValidate(type.contains("w"));
-                    colored(true);
+                    colored(true, 0, 0);
                     if (moves.isEmpty()) {
                         clearSelection();
                     }
@@ -146,41 +152,12 @@ public class ChessBoard extends Application {
                     isEaten(row, col);
                     placePiece(row, col);
                     pieces[row][col] = pieces[selectedRow][selectedCol];
-                    boolean isKing = pieces[row][col].contains("K");
-                    boolean isCheck = isKing ? isCheckForKing(pieces[row][col], row, col) : isCheck(pieces[row][col], row, col);
-
-                    if (isCheck) {
-                        String color = isKing ? (nowIsWhite ? "Белому" : "Черному") : (!nowIsWhite ? "Белому" : "Черному");
-                        showAlert("Шах!", color + " Королю поставлен шах!");
-                    }
+                    nowCheck(row, col);
                     pieces[selectedRow][selectedCol] = null;
-                    colored(false);
+                    colored(false, row, col);
                     nowIsWhite = !nowIsWhite;
                     clearSelection();
                     moves.clear();
-
-////                     Check for check and checkmate
-//                    int kingRow = -1, kingCol = -1;
-//                    outer:
-//                    for (int i = 0; i < 8; i++) {
-//                        for (int j = 0; j < 8; j++) {
-//                            if (pieces[i][j] != null) {
-//                                if (ChessBoard.isWhitePiece(i, j) == nowIsWhite && pieces[i][j].contains("K")) {
-//                                    kingRow = i;
-//                                    kingCol = j;
-//                                    break outer;
-//                                }
-//                            }
-//                        }
-//                    }
-//
-//                    if (isCheck(kingRow, kingCol, nowIsWhite)) {
-//                        System.out.println("Check!");
-//                        if (isCheckmate(kingRow, kingCol, nowIsWhite)) {
-//                            System.out.println("Checkmate! Game over.");
-//                        }
-//                    }
-
                     break;
                 }
             }
@@ -214,12 +191,14 @@ public class ChessBoard extends Application {
         }
     }
 
-    private void colored(boolean isBefore) {
+    private void colored(boolean isBefore, int rows, int cols) {
         int selectedSum = selectedRow + selectedCol;
         if (isBefore) {
             squares[selectedRow][selectedCol].setStyle(selectedSum % 2 == 0 ? "-fx-background-color: #f7baba;" : "-fx-background-color: #ad8292;");
+            squares[oldSelectedCol][oldSelectedRow].setStyle(selectedSum % 2 == 0 ? "-fx-background-color: white;" : "-fx-background-color: grey;");
         } else {
             squares[selectedRow][selectedCol].setStyle(selectedSum % 2 == 0 ? "-fx-background-color: white;" : "-fx-background-color: grey;");
+            squares[rows][cols].setStyle(selectedSum % 2 == 0 ? "-fx-background-color: #e3f0fc;" : "-fx-background-color: #677582;");
         }
 
         for (int[] coordinates : moves) {
@@ -230,6 +209,26 @@ public class ChessBoard extends Application {
                 squares[row][col].setStyle(sum % 2 == 0 ? "-fx-background-color: #ffe1a8;" : "-fx-background-color: #ffa600;");
             } else {
                 squares[row][col].setStyle(sum % 2 == 0 ? "-fx-background-color: white;" : "-fx-background-color: grey;");
+            }
+        }
+    }
+
+    private void nowCheck(int row, int col) {
+        String selestPiece = pieces[row][col];
+        boolean isKing = pieces[row][col].contains("K");
+        boolean isCheck = isKing ? isCheckByKing(selestPiece, row, col) : ChessMoves.isCheckCurrentPiece(selestPiece, row, col);
+        if (isCheck) {
+            String color = isKing ? (nowIsWhite ? "Белому" : "Черному") : (!nowIsWhite ? "Белому" : "Черному");
+            showAlert("Шах!", color + " Королю поставлен шах!");
+        } else if (nowIsWhite) {
+            isCheck = isCheckByKing("wK", kingCoordinates[0][0], kingCoordinates[0][1]);
+            if (isCheck) {
+                showAlert("Шах!", "Черному Королю поставлен шах!");
+            }
+        } else if (!nowIsWhite) {
+            isCheck = isCheckByKing("bK", kingCoordinates[1][0], kingCoordinates[1][1]);
+            if (isCheck) {
+                showAlert("Шах!", "Белому Королю поставлен шах!");
             }
         }
     }
@@ -255,7 +254,8 @@ public class ChessBoard extends Application {
 
 
     private void clearSelection() {
-        // Reset the selected piece
+        oldSelectedRow = selectedRow;
+        oldSelectedCol = selectedCol;
         selectedRow = -1;
         selectedCol = -1;
     }
