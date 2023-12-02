@@ -12,6 +12,11 @@ class ClientHandler extends Thread {
     private PrintWriter out;
     private BufferedReader in;
     private String name;
+
+    public void setClients(List<ClientHandler> clients) {
+        this.clients = clients;
+    }
+
     private List<ClientHandler> clients;
 
     public ClientHandler(Socket socket, List<ClientHandler> clients) {
@@ -19,6 +24,7 @@ class ClientHandler extends Thread {
         this.clients = clients;
     }
 
+    @Override
     public void run() {
         try {
             out = new PrintWriter(clientSocket.getOutputStream(), true);
@@ -29,6 +35,7 @@ class ClientHandler extends Thread {
 
             String inputLine;
             while ((inputLine = in.readLine()) != null) {
+                System.out.println(name + ": " + inputLine);
                 broadcast(name + ": " + inputLine);
             }
 
@@ -39,7 +46,7 @@ class ClientHandler extends Thread {
         }
     }
 
-    private void broadcast(String message) {
+    public void broadcast(String message) {
         for (ClientHandler client : clients) {
             client.out.println(message);
         }

@@ -1,14 +1,20 @@
 package com.javafx.semestrovka.socket;
 
+import com.javafx.semestrovka.ChessBoard;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class ChatClient {
+    public boolean iAmWhite = true;
     private Socket clientSocket;
+    public ChessBoard chessBoard;
     private PrintWriter out;
     private BufferedReader in;
 
@@ -17,13 +23,39 @@ public class ChatClient {
             clientSocket = new Socket(ip, port);
             out = new PrintWriter(clientSocket.getOutputStream(), true);
             in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+            String regex = "([wb]:\\d+:\\d+:\\d+:\\d+)";
+            Pattern pattern = Pattern.compile(regex);
 
             // Create a new thread to listen for server messages
             new Thread(() -> {
+                boolean isRun = false;
                 String serverMessage;
                 try {
                     while ((serverMessage = in.readLine()) != null) {
+                        Matcher matcher = pattern.matcher(serverMessage);
                         System.out.println(serverMessage);
+                        if (serverMessage.contains("GAME_START") && !isRun) {
+                            isRun = true;
+                            new Thread(() -> {
+                                chessBoard.runGame(iAmWhite);
+                            }).start();
+                        }else if (matcher.find()) {
+                            String matchedSubstring = matcher.group(1); // Получаем подстроку из первой группы
+                            String[] parts = matchedSubstring.split(":");
+
+                            if (parts.length == 5) {
+                                try {
+                                    String color = parts[0];
+                                    int selectedRow = Integer.parseInt(parts[1]);
+                                    int selectedCol = Integer.parseInt(parts[2]);
+                                    int row = Integer.parseInt(parts[3]);
+                                    int col = Integer.parseInt(parts[4]);
+                                    chessBoard.getMove(color, selectedRow, selectedCol, row, col);
+                                } catch (NumberFormatException e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                        }
                     }
                 } catch (IOException e) {
                     e.printStackTrace();

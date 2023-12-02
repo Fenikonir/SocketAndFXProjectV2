@@ -8,6 +8,7 @@ import java.util.List;
 
 public class MultiThreadChatServer {
     private static List<ClientHandler> clients = new ArrayList<>();
+    private static List<Room> rooms = new ArrayList<>();
 
     public static void main(String[] args) {
         try (ServerSocket serverSocket = new ServerSocket(1234)) {
@@ -16,13 +17,41 @@ public class MultiThreadChatServer {
             while (true) {
                 Socket clientSocket = serverSocket.accept();
                 System.out.println("New client connected");
+                boolean added = false;
 
-                ClientHandler clientHandler = new ClientHandler(clientSocket, clients);
-                clients.add(clientHandler);
-                clientHandler.start();
+                for (Room room: rooms) {
+                    if (room.isOpened()) {
+                        added = true;
+                        ClientHandler clientHandler = new ClientHandler(clientSocket, room.getClientHandlers());
+                        room.addJoiner(clientHandler);
+                        clients.add(clientHandler);
+                        room.getCreator().setClients(List.of(room.getCreator(), room.getJoiner()));
+                        room.getJoiner().setClients(List.of(room.getCreator(), room.getJoiner()));
+                        clientHandler.start();
+                        room.startGame();
+                    }
+                }
+                if (!added) {
+                    createRoom(clientSocket);
+                }
+
+
             }
         } catch (IOException e) {
             e.printStackTrace();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
         }
+    }
+
+    public static Room createRoom(Socket clientSocket) {
+        Room room = new Room();
+        ClientHandler clientHandler = new ClientHandler(clientSocket, null);
+        room.setCreator(clientHandler);
+        clientHandler.setClients(List.of(clientHandler));
+        clients.add(clientHandler);
+        clientHandler.start();
+        rooms.add(room);
+        return room;
     }
 }
