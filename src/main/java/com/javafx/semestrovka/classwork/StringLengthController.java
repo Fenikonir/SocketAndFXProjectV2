@@ -1,4 +1,4 @@
-package com.javafx.semestrovka;
+package com.javafx.semestrovka.classwork;
 
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;

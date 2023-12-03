@@ -4,7 +4,7 @@
 <?import javafx.scene.control.Slider?>
 <?import javafx.scene.layout.AnchorPane?>
 
-<AnchorPane xmlns="http://javafx.com/javafx/16" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.javafx.semestrovka.SliderController">
+<AnchorPane xmlns="http://javafx.com/javafx/16" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.javafx.semestrovka.classwork.SliderController">
     <children>
         <Slider fx:id="slider" min="0" max="10" value="0" layoutX="90.0" layoutY="45.0" />
         <Label fx:id="label" layoutX="225.0" layoutY="45.0" />

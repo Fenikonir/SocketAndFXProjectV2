@@ -2,7 +2,6 @@ package com.javafx.semestrovka;
 
 import com.javafx.semestrovka.chess.ChessBoardInterface;
 import com.javafx.semestrovka.chess.ChessMoves;
-import com.javafx.semestrovka.socket.ChatClient;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -15,22 +14,33 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.GridPane;
 import javafx.stage.Stage;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-
-import static com.javafx.semestrovka.chess.ChessMoves.isCheckByKing;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class ChessBoard extends Application implements ChessBoardInterface {
+
+    private Socket socket;
+    private PrintWriter out;
+    private BufferedReader in;
+
+    private boolean gameStarted = false;
+
     public void runGame(boolean iAmWhite) {
         this.iAmWhite = iAmWhite;
         launch();
     }
-    public static ChatClient chatClient;
     public String name = "Player";
     boolean iAmWhite;
     boolean nowIsWhite = true;
-    public static String[][] pieces = new String[8][8];
+    public String[][] pieces = new String[8][8];
     ChessMoves chessMoves = null;
     GridPane chessBoard = new GridPane();
     Button[][] squares = new Button[8][8];
@@ -50,57 +60,150 @@ public class ChessBoard extends Application implements ChessBoardInterface {
         launch(args);
     }
 
+    private void connectToServer() {
+        try {
+            socket = new Socket("127.0.0.1", 1234); // Change to your server's address and port
+            out = new PrintWriter(socket.getOutputStream(), true);
+            in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void sendMessageToServer(String message) {
+        out.println(message);
+    }
+
+    private void receiveMessages() {
+        String regex = "([wb]:\\d+:\\d+:\\d+:\\d+)";
+        Pattern pattern = Pattern.compile(regex);
+        try {
+            String message;
+            while ((message = in.readLine()) != null) {
+                System.out.println("Received from server: " + message);
+                Matcher matcher = pattern.matcher(message);
+
+                if (matcher.find()) {
+                    String matchedSubstring = matcher.group(1); // Получаем подстроку из первой группы
+                    String[] parts = matchedSubstring.split(":");
+
+                    if (parts.length == 5) {
+                        try {
+                            String color = parts[0];
+                            int selectedRow = Integer.parseInt(parts[1]);
+                            int selectedCol = Integer.parseInt(parts[2]);
+                            int row = Integer.parseInt(parts[3]);
+                            int col = Integer.parseInt(parts[4]);
+                            getMove(color, selectedRow, selectedCol, row, col);
+                        } catch (NumberFormatException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void closeConnection() {
+        try {
+            if (socket != null && !socket.isClosed()) {
+                socket.close();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     @Override
     public void start(Stage primaryStage) {
-        System.setProperty("console.encoding", "UTF-8");
-        primaryStage.setTitle("Chess Board");
-        chessBoard.setPadding(new Insets(10));
-        color = "b";
-        if (iAmWhite) {
-            color = "w";
-        }
-        // Add empty cell in the top-left corner
-        chessBoard.add(new Label(), 0, 0);
+        connectToServer();
 
-        // Add letters for horizontal coordinates
-        for (int col = 0; col < 8; col++) {
-            Button label = new Button(Character.toString((char) ('A' + col)));
-            label.setDisable(true);
-            chessBoard.add(label, col + 1, 0);
-        }
-
-        // Add numbers for vertical coordinates and chessboard cells
-        for (int row = 0; row < 8; row++) {
-            Button numberLabel = new Button(Integer.toString(8 - row));
-            numberLabel.setDisable(true);
-            chessBoard.add(numberLabel, 0, row + 1);
-
-            for (int col = 0; col < 8; col++) {
-                squares[row][col] = new Button();
-                squares[row][col].setMinSize(80, 80);
-                squares[row][col].setPrefSize(80, 80);
-                squares[row][col].setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
-                squares[row][col].setStyle("-fx-background-color: " + ((row + col) % 2 == 0 ? "white;" : "grey;") + "-fx-border-width: 1; -fx-border-color: black;");
-                if ((row + col) % 2 == 0) {
-                    squares[row][col].setStyle("-fx-background-color: white;");
-                } else {
-                    squares[row][col].setStyle("-fx-background-color: grey;");
+        // Wait for "START_GAME" signal from the server
+        new Thread(() -> {
+            try {
+                String serverMessage;
+                while ((serverMessage = in.readLine()) != null) {
+//                    if ("GAME_START".equals(serverMessage)) {
+//                        gameStarted = true;
+//                        sendMessageToServer("Player");
+//                        Platform.runLater(this::startGame);
+//                        break;
+//                    }
+                    if (serverMessage.contains("GAME_START")) {
+                        char lastChar = serverMessage.charAt(serverMessage.length() - 1);
+                        System.out.println("Last character: " + lastChar);
+                        gameStarted = true;
+                        sendMessageToServer("Player");
+                        boolean c = 'B' != lastChar;
+                        Platform.runLater(() -> startGame(c));
+                        break;
+                    }
                 }
-                int finalRow = row;
-                int finalCol = col;
-                squares[row][col].setOnMouseClicked(e -> handleSquareClick(finalRow, finalCol));
-                chessBoard.add(squares[row][col], col + 1, row + 1);
+            } catch (IOException e) {
+                e.printStackTrace();
             }
+        }).start();
+    }
+
+    public void startGame(boolean wB) {
+        if (gameStarted) {
+            this.iAmWhite = wB;
+            Stage gameStage = new Stage();
+            chessMoves = new ChessMoves(this);
+
+            System.setProperty("console.encoding", "UTF-8");
+            gameStage.setTitle("Chess Board");
+            chessBoard.setPadding(new Insets(10));
+            color = "b";
+            if (iAmWhite) {
+                color = "w";
+            }
+            // Add empty cell in the top-left corner
+            chessBoard.add(new Label(), 0, 0);
+
+            // Add letters for horizontal coordinates
+            for (int col = 0; col < 8; col++) {
+                Button label = new Button(Character.toString((char) ('A' + col)));
+                label.setDisable(true);
+                chessBoard.add(label, col + 1, 0);
+            }
+
+            // Add numbers for vertical coordinates and chessboard cells
+            for (int row = 0; row < 8; row++) {
+                Button numberLabel = new Button(Integer.toString(8 - row));
+                numberLabel.setDisable(true);
+                chessBoard.add(numberLabel, 0, row + 1);
+
+                for (int col = 0; col < 8; col++) {
+                    squares[row][col] = new Button();
+                    squares[row][col].setMinSize(80, 80);
+                    squares[row][col].setPrefSize(80, 80);
+                    squares[row][col].setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+                    squares[row][col].setStyle("-fx-background-color: " + ((row + col) % 2 == 0 ? "white;" : "grey;") + "-fx-border-width: 1; -fx-border-color: black;");
+                    if ((row + col) % 2 == 0) {
+                        squares[row][col].setStyle("-fx-background-color: white;");
+                    } else {
+                        squares[row][col].setStyle("-fx-background-color: grey;");
+                    }
+                    int finalRow = row;
+                    int finalCol = col;
+                    squares[row][col].setOnMouseClicked(e -> handleSquareClick(finalRow, finalCol));
+                    chessBoard.add(squares[row][col], col + 1, row + 1);
+                }
+            }
+
+            addChessPieces(true); // true - white pieces at the bottom, false - black pieces at the bottom
+
+            Scene scene = new Scene(chessBoard, 720, 720);
+            gameStage.setScene(scene);
+            gameStage.setResizable(false);
+            gameStage.setOnCloseRequest(e -> Platform.exit());
+            gameStage.show();
+            new Thread(this::receiveMessages).start();
+//            chatClient.sendMessage(name);
         }
-
-        addChessPieces(true); // true - white pieces at the bottom, false - black pieces at the bottom
-
-        Scene scene = new Scene(chessBoard, 720, 720);
-        primaryStage.setScene(scene);
-        primaryStage.setResizable(false);
-        primaryStage.setOnCloseRequest(e -> Platform.exit());
-        primaryStage.show();
-        chatClient.sendMessage(name);
     }
 
     private void addChessPieces(boolean isWhiteOnBottom) {
@@ -140,29 +243,31 @@ public class ChessBoard extends Application implements ChessBoardInterface {
 
 
     private void handleSquareClick(int row, int col) {
-        if (selectedRow == -1 && selectedCol == -1) {
-            if (pieces[row][col] != null) {
-                boolean isWhite = isWhitePiece(row, col);
-                if ((nowIsWhite && isWhite) || (!nowIsWhite && !isWhite)) {
-                    selectedRow = row;
-                    selectedCol = col;
+        if (iAmWhite == nowIsWhite) {
+            if (selectedRow == -1 && selectedCol == -1) {
+                if (pieces[row][col] != null) {
+                    boolean isWhite = isWhitePiece(row, col);
+                    if ((nowIsWhite && isWhite) || (!nowIsWhite && !isWhite)) {
+                        selectedRow = row;
+                        selectedCol = col;
 
-                    String type = pieces[row][col];
-                    moves = ChessMoves.getUniversalMoves(type, row, col);
-                    assert type != null;
-                    moveValidate(type.contains("w"));
-                    colored(true, 0, 0);
-                    if (moves.isEmpty()) {
-                        clearSelection();
+                        String type = pieces[row][col];
+                        moves = chessMoves.getUniversalMoves(type, row, col);
+                        assert type != null;
+                        moveValidate(type.contains("w"));
+                        colored(true, 0, 0);
+                        if (moves.isEmpty()) {
+                            clearSelection();
+                        }
                     }
                 }
-            }
-        } else {
-            // Second click: select target square
-            for (int[] coordinates : moves) {
-                if (coordinates[0] == row && coordinates[1] == col) {
-                    makeMove(row, col, true);
-                    break;
+            } else {
+                // Second click: select target square
+                for (int[] coordinates : moves) {
+                    if (coordinates[0] == row && coordinates[1] == col) {
+                        makeMove(row, col, true);
+                        break;
+                    }
                 }
             }
         }
@@ -170,9 +275,7 @@ public class ChessBoard extends Application implements ChessBoardInterface {
 
     private void makeMove(int row, int col, boolean local) {
         isEaten(row, col);
-        placePiece(row, col);
-        pieces[row][col] = pieces[selectedRow][selectedCol];
-        pieces[selectedRow][selectedCol] = null;
+        placePiece(row, col, local);
         colored(false, row, col);
         nowCheck(row, col);
         nowIsWhite = !nowIsWhite;
@@ -248,7 +351,7 @@ public class ChessBoard extends Application implements ChessBoardInterface {
     private boolean nowCheck(int row, int col) {
         String selestPiece = pieces[row][col];
         boolean isKing = pieces[row][col].contains("K");
-        boolean isCheck = isKing ? isCheckByKing(selestPiece, row, col) : ChessMoves.isCheckCurrentPiece(selestPiece, row, col);
+        boolean isCheck = isKing ? chessMoves.isCheckByKing(selestPiece, row, col) : chessMoves.isCheckCurrentPiece(selestPiece, row, col);
         if (isCheck) {
             String color = isKing ? (nowIsWhite ? "Белому" : "Черному") : (!nowIsWhite ? "Белому" : "Черному");
             showAlert("Шах!", color + " Королю поставлен шах!");
@@ -267,20 +370,29 @@ public class ChessBoard extends Application implements ChessBoardInterface {
         return isCheck;
     }
 
-    private void placePiece(int targetRow, int targetCol) {
+    private void placePiece(int targetRow, int targetCol, boolean local) {
         // Move the piece to the new cell
         ImageView pieceImageView = (ImageView) squares[selectedRow][selectedCol].getGraphic();
-        squares[targetRow][targetCol].setGraphic(pieceImageView);
-        squares[selectedRow][selectedCol].setGraphic(null); // Clear the old cell
+        pieces[targetRow][targetCol] = pieces[selectedRow][selectedCol];
+        if (local) {
+            squares[targetRow][targetCol].setGraphic(pieceImageView);
+            squares[selectedRow][selectedCol].setGraphic(null); // Clear the old cell
+        } else {
+            Platform.runLater(() -> {
+                squares[targetRow][targetCol].setGraphic(pieceImageView);
+                squares[selectedRow][selectedCol].setGraphic(null); // Clear the old cell
+            });
+        }
+        pieces[selectedRow][selectedCol] = null;
     }
 
-    public static boolean canCastleKingside(int row, int col) {
+    public boolean canCastleKingside(int row, int col) {
         // Check if kingside castling is possible
         return isWhitePiece(row, col) && !isOccupied(row, col + 1) && !isOccupied(row, col + 2)
                 && pieces[row][7] != null && pieces[row][7].equals("wR") /* Check if the rook has not moved */;
     }
 
-    public static boolean canCastleQueenside(int row, int col) {
+    public boolean canCastleQueenside(int row, int col) {
         // Check if queenside castling is possible
         return isWhitePiece(row, col) && !isOccupied(row, col - 1) && !isOccupied(row, col - 2) && !isOccupied(row, col - 3)
                 && pieces[row][0] != null && pieces[row][0].equals("wR") /* Check if the rook has not moved */;
@@ -292,7 +404,7 @@ public class ChessBoard extends Application implements ChessBoardInterface {
         return String.valueOf(letter) + number;
     }
     private void sendMove(int selectedRow, int selectedCol, int row, int col) {
-        chatClient.sendMessage(String.format("%s:%d:%d:%d:%d", color, selectedRow, selectedCol, row, col));
+        sendMessageToServer(String.format("%s:%d:%d:%d:%d", color, selectedRow, selectedCol, row, col));
     }
     public void getMove(String color, int selectedRow, int selectedCol, int row, int col) {
         if (!this.color.equals(color)) {
@@ -308,11 +420,11 @@ public class ChessBoard extends Application implements ChessBoardInterface {
         selectedCol = -1;
     }
 
-    public static boolean isOccupied(int row, int col) {
+    public boolean isOccupied(int row, int col) {
         return pieces[row][col] != null;
     }
 
-    public static boolean isWhitePiece(int row, int col) {
+    public boolean isWhitePiece(int row, int col) {
         if (isOccupied(row, col)) {
             return pieces[row][col].contains("w");
         }

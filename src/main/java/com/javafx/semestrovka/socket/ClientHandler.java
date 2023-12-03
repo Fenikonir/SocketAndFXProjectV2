@@ -46,6 +46,10 @@ class ClientHandler extends Thread {
         }
     }
 
+    public void sendMessage(String message) {
+        out.println(message);
+    }
+
     public void broadcast(String message) {
         for (ClientHandler client : clients) {
             client.out.println(message);

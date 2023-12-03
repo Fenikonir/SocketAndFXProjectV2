@@ -1,4 +1,4 @@
-package com.javafx.semestrovka;
+package com.javafx.semestrovka.classwork;
 
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;

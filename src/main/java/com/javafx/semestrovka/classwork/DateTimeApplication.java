@@ -1,4 +1,4 @@
-package com.javafx.semestrovka;
+package com.javafx.semestrovka.classwork;
 
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
@@ -7,12 +7,12 @@ import javafx.stage.Stage;
 
 import java.io.IOException;
 
-public class StringLengthApplication extends Application {
+public class DateTimeApplication extends Application {
     @Override
     public void start(Stage stage) throws IOException {
-        FXMLLoader fxmlLoader = new FXMLLoader(StringLengthApplication.class.getResource("string-length.fxml"));
+        FXMLLoader fxmlLoader = new FXMLLoader(DateTimeApplication.class.getResource("date-view.fxml"));
         Scene scene = new Scene(fxmlLoader.load(), 320, 240);
-        stage.setTitle("Много говоришь!");
+        stage.setTitle("Где я!");
         stage.setScene(scene);
         stage.show();
     }

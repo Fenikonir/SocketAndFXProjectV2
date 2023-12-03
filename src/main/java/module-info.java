@@ -7,4 +7,6 @@ module com.javafx.semestrovka {
 
     opens com.javafx.semestrovka to javafx.fxml;
     exports com.javafx.semestrovka;
+    exports com.javafx.semestrovka.classwork;
+    opens com.javafx.semestrovka.classwork to javafx.fxml;
 }

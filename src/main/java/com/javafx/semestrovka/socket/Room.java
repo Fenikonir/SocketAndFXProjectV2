@@ -56,10 +56,10 @@ public class Room {
 
     public void startGame() throws InterruptedException {
         TimeUnit.SECONDS.sleep(1);
+        joiner.sendMessage("GAME_START_B");
+        creator.sendMessage("GAME_START_W");
 
-        for (ClientHandler handler : getClientHandlers()) {
-            handler.broadcast("GAME_START");
-        }
+
     }
 
     public boolean isOpened() {
