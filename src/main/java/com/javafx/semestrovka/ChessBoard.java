@@ -277,7 +277,7 @@ public class ChessBoard extends Application implements ChessBoardInterface {
         isEaten(row, col);
         placePiece(row, col, local);
         colored(false, row, col);
-        nowCheck(row, col);
+        nowCheck(row, col, local);
         nowIsWhite = !nowIsWhite;
         oldStartRow = selectedRow;
         oldStartCol = selectedCol;
@@ -348,13 +348,19 @@ public class ChessBoard extends Application implements ChessBoardInterface {
         }
     }
 
-    private boolean nowCheck(int row, int col) {
+    private boolean nowCheck(int row, int col, boolean local) {
         String selestPiece = pieces[row][col];
         boolean isKing = pieces[row][col].contains("K");
         boolean isCheck = isKing ? chessMoves.isCheckByKing(selestPiece, row, col) : chessMoves.isCheckCurrentPiece(selestPiece, row, col);
         if (isCheck) {
             String color = isKing ? (nowIsWhite ? "Белому" : "Черному") : (!nowIsWhite ? "Белому" : "Черному");
-            showAlert("Шах!", color + " Королю поставлен шах!");
+            if (local) {
+                showAlert("Шах!", color + " Королю поставлен шах!");
+            } else {
+//                Platform.runLater(() -> {
+                    showAlert("Шах!", color + " Королю поставлен шах!");
+//                });
+            }
         }
 //        else if (nowIsWhite) {
 //            isCheck = isCheckByKing("wK", kingCoordinates[0][0], kingCoordinates[0][1]);
@@ -378,10 +384,10 @@ public class ChessBoard extends Application implements ChessBoardInterface {
             squares[targetRow][targetCol].setGraphic(pieceImageView);
             squares[selectedRow][selectedCol].setGraphic(null); // Clear the old cell
         } else {
-            Platform.runLater(() -> {
+//            Platform.runLater(() -> {
                 squares[targetRow][targetCol].setGraphic(pieceImageView);
                 squares[selectedRow][selectedCol].setGraphic(null); // Clear the old cell
-            });
+//            });
         }
         pieces[selectedRow][selectedCol] = null;
     }
@@ -410,7 +416,9 @@ public class ChessBoard extends Application implements ChessBoardInterface {
         if (!this.color.equals(color)) {
             this.selectedRow = selectedRow;
             this.selectedCol = selectedCol;
-            makeMove(row, col, false);
+            Platform.runLater(() -> {
+                makeMove(row, col, false);
+            });
         }
     }
 
