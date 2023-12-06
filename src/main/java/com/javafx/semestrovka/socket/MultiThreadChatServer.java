@@ -1,6 +1,8 @@
 package com.javafx.semestrovka.socket;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
@@ -17,25 +19,35 @@ public class MultiThreadChatServer {
             while (true) {
                 Socket clientSocket = serverSocket.accept();
                 System.out.println("New client connected");
-                boolean added = false;
+                BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+                String inputLine;
+                boolean f = false;
+                while ((inputLine = in.readLine()) != null) {
+                    f = parseString(inputLine);
+                    break;
+                }
+                if (!f) {
 
-                for (Room room: rooms) {
-                    if (room.isOpened()) {
-                        added = true;
-                        ClientHandler clientHandler = new ClientHandler(clientSocket, room.getClientHandlers());
-                        room.addJoiner(clientHandler);
-                        clients.add(clientHandler);
-                        room.getCreator().setClients(List.of(room.getCreator(), room.getJoiner()));
-                        room.getJoiner().setClients(List.of(room.getCreator(), room.getJoiner()));
-                        clientHandler.start();
-                        room.startGame();
+                    boolean added = false;
+
+                    for (Room room : rooms) {
+                        if (room.isOpened()) {
+                            added = true;
+                            ClientHandler clientHandler = new ClientHandler(clientSocket, room.getClientHandlers());
+                            room.addJoiner(clientHandler);
+                            clients.add(clientHandler);
+                            room.getCreator().setClients(List.of(room.getCreator(), room.getJoiner()));
+                            room.getJoiner().setClients(List.of(room.getCreator(), room.getJoiner()));
+                            clientHandler.start();
+                            room.startGame();
+                        }
                     }
-                }
-                if (!added) {
-                    createRoom(clientSocket);
-                }
+                    if (!added) {
+                        createRoom(clientSocket);
+                    }
 
 
+                }
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -53,5 +65,18 @@ public class MultiThreadChatServer {
         clientHandler.start();
         rooms.add(room);
         return room;
+    }
+
+    private static boolean parseString(String input) {
+        if (input.contains("true")){
+            return true;
+        }
+        return false;
+//        String[] parts = input.split(":");
+//        if (parts.length == 4) {
+//            return parts;
+//        } else if (parts.length == 3) {
+//            return false; // Неправильный формат строки
+//        }
     }
 }

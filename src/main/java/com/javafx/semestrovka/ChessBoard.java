@@ -26,17 +26,15 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class ChessBoard extends Application implements ChessBoardInterface {
-
+    public ChessBoard(String result) {
+        this.result = result;
+    }
+    private Stage gameStage = null;
+    private String result;
     private Socket socket;
     private PrintWriter out;
     private BufferedReader in;
-
     private boolean gameStarted = false;
-
-    public void runGame(boolean iAmWhite) {
-        this.iAmWhite = iAmWhite;
-        launch();
-    }
     public String name = "Player";
     boolean iAmWhite;
     boolean nowIsWhite = true;
@@ -62,7 +60,7 @@ public class ChessBoard extends Application implements ChessBoardInterface {
 
     private void connectToServer() {
         try {
-            socket = new Socket("127.0.0.1", 1234); // Change to your server's address and port
+            socket = new Socket("127.0.0.1", 1234);
             out = new PrintWriter(socket.getOutputStream(), true);
             in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
         } catch (IOException e) {
@@ -118,12 +116,17 @@ public class ChessBoard extends Application implements ChessBoardInterface {
 
     @Override
     public void start(Stage primaryStage) {
+        if (result != null) {
+            System.out.println(result);
+        }
+
         connectToServer();
 
         // Wait for "START_GAME" signal from the server
         new Thread(() -> {
             try {
                 String serverMessage;
+                out.println(result);
                 while ((serverMessage = in.readLine()) != null) {
 //                    if ("GAME_START".equals(serverMessage)) {
 //                        gameStarted = true;
@@ -137,6 +140,7 @@ public class ChessBoard extends Application implements ChessBoardInterface {
                         gameStarted = true;
                         sendMessageToServer("Player");
                         boolean c = 'B' != lastChar;
+//                        Platform.runLater(() -> startGame(c));
                         Platform.runLater(() -> startGame(c));
                         break;
                     }
@@ -149,8 +153,9 @@ public class ChessBoard extends Application implements ChessBoardInterface {
 
     public void startGame(boolean wB) {
         if (gameStarted) {
+            System.out.println("Result: " + result);
             this.iAmWhite = wB;
-            Stage gameStage = new Stage();
+            gameStage = new Stage();
             chessMoves = new ChessMoves(this);
 
             System.setProperty("console.encoding", "UTF-8");
@@ -290,6 +295,11 @@ public class ChessBoard extends Application implements ChessBoardInterface {
         }
         clearSelection();
         moves.clear();
+        if (iAmWhite == nowIsWhite) {
+            gameStage.setTitle("Шахматы: Ваш ход");
+        } else {
+            gameStage.setTitle("Шахматы: Ход соперника");
+        }
     }
 
     private void moveValidate(boolean isWhite) {
