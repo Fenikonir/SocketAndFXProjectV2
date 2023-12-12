@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -26,8 +27,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class ChessBoard extends Application implements ChessBoardInterface {
-    public ChessBoard(String result) {
+    public ChessBoard(String result, String skin) {
         this.result = result;
+        sourceRootV2 = String.format(sourceRoot, skin);
     }
     private Stage gameStage = null;
     private String result;
@@ -36,6 +38,7 @@ public class ChessBoard extends Application implements ChessBoardInterface {
     private BufferedReader in;
     private boolean gameStarted = false;
     public String name = "Player";
+    private final String sourceRootV2;
     boolean iAmWhite;
     boolean nowIsWhite = true;
     public String[][] pieces = new String[8][8];
@@ -77,28 +80,38 @@ public class ChessBoard extends Application implements ChessBoardInterface {
         Pattern pattern = Pattern.compile(regex);
         try {
             String message;
-            while ((message = in.readLine()) != null) {
-                System.out.println("Received from server: " + message);
-                Matcher matcher = pattern.matcher(message);
+            try {
+                while (!socket.isClosed() && (message = in.readLine()) != null) {
+                    System.out.println("Received from server: " + message);
+                    Matcher matcher = pattern.matcher(message);
 
-                if (matcher.find()) {
-                    String matchedSubstring = matcher.group(1); // Получаем подстроку из первой группы
-                    String[] parts = matchedSubstring.split(":");
+                    if (matcher.find()) {
+                        String matchedSubstring = matcher.group(1); // Получаем подстроку из первой группы
+                        String[] parts = matchedSubstring.split(":");
 
-                    if (parts.length == 5) {
-                        try {
-                            String color = parts[0];
-                            int selectedRow = Integer.parseInt(parts[1]);
-                            int selectedCol = Integer.parseInt(parts[2]);
-                            int row = Integer.parseInt(parts[3]);
-                            int col = Integer.parseInt(parts[4]);
-                            getMove(color, selectedRow, selectedCol, row, col);
-                        } catch (NumberFormatException e) {
-                            e.printStackTrace();
+                        if (parts.length == 5) {
+                            try {
+                                String color = parts[0];
+                                int selectedRow = Integer.parseInt(parts[1]);
+                                int selectedCol = Integer.parseInt(parts[2]);
+                                int row = Integer.parseInt(parts[3]);
+                                int col = Integer.parseInt(parts[4]);
+                                getMove(color, selectedRow, selectedCol, row, col);
+                            } catch (NumberFormatException e) {
+                                e.printStackTrace();
+                            }
                         }
                     }
                 }
+            } catch (SocketException e) {
+                if (e.getMessage().equals("Socket closed")) {
+                    // Handle socket closure, e.g., break out of the loop or perform cleanup
+                } else {
+                    // Handle other SocketException scenarios
+                    e.printStackTrace();
+                }
             }
+
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -204,7 +217,11 @@ public class ChessBoard extends Application implements ChessBoardInterface {
             Scene scene = new Scene(chessBoard, 720, 720);
             gameStage.setScene(scene);
             gameStage.setResizable(false);
-            gameStage.setOnCloseRequest(e -> Platform.exit());
+            gameStage.setOnCloseRequest(event -> {
+                closeConnection();
+                Platform.exit();
+                System.out.println("Приложение закрывается");
+            });
             gameStage.show();
             new Thread(this::receiveMessages).start();
 //            chatClient.sendMessage(name);
@@ -215,13 +232,13 @@ public class ChessBoard extends Application implements ChessBoardInterface {
         for (int col = 0; col < 8; col++) {
             Image pieceImage;
             if (isWhiteOnBottom) {
-                pieceImage = new Image(Objects.requireNonNull(getClass().getResourceAsStream(sourceRoot + "w" + pieceNames[col] + ".png")));
+                pieceImage = new Image(Objects.requireNonNull(getClass().getResourceAsStream(sourceRootV2 + "w" + pieceNames[col] + ".png")));
                 squares[7][col].setGraphic(new ImageView(pieceImage));
                 pieces[7][col] = "w" + pieceNames[col];
-                pieceImage = new Image(Objects.requireNonNull(getClass().getResourceAsStream(sourceRoot + "w" + pawnName + ".png")));
+                pieceImage = new Image(Objects.requireNonNull(getClass().getResourceAsStream(sourceRootV2 + "w" + pawnName + ".png")));
                 squares[6][col].setGraphic(new ImageView(pieceImage));
                 pieces[6][col] = "w" + pawnName;
-                pieceImage = new Image(Objects.requireNonNull(getClass().getResourceAsStream(sourceRoot + "b" + pieceNames[col] + ".png")));
+                pieceImage = new Image(Objects.requireNonNull(getClass().getResourceAsStream(sourceRootV2 + "b" + pieceNames[col] + ".png")));
                 squares[0][col].setGraphic(new ImageView(pieceImage));
                 if (pieceNames[col].equals("K")) {
                     kingCoordinates[0][0] = 7;
@@ -230,17 +247,17 @@ public class ChessBoard extends Application implements ChessBoardInterface {
                     kingCoordinates[1][1] = col;
                 }
                 pieces[0][col] = "b" + pieceNames[col];
-                pieceImage = new Image(Objects.requireNonNull(getClass().getResourceAsStream(sourceRoot + "b" + pawnName + ".png")));
+                pieceImage = new Image(Objects.requireNonNull(getClass().getResourceAsStream(sourceRootV2 + "b" + pawnName + ".png")));
                 squares[1][col].setGraphic(new ImageView(pieceImage));
                 pieces[1][col] = "b" + pawnName;
             } else {
-                pieceImage = new Image(Objects.requireNonNull(getClass().getResourceAsStream(sourceRoot + "b" + pieceNames[col] + ".png")));
+                pieceImage = new Image(Objects.requireNonNull(getClass().getResourceAsStream(sourceRootV2 + "b" + pieceNames[col] + ".png")));
                 squares[7][col].setGraphic(new ImageView(pieceImage));
-                pieceImage = new Image(Objects.requireNonNull(getClass().getResourceAsStream(sourceRoot + "b" + pawnName + ".png")));
+                pieceImage = new Image(Objects.requireNonNull(getClass().getResourceAsStream(sourceRootV2 + "b" + pawnName + ".png")));
                 squares[6][col].setGraphic(new ImageView(pieceImage));
-                pieceImage = new Image(Objects.requireNonNull(getClass().getResourceAsStream(sourceRoot + "w" + pieceNames[col] + ".png")));
+                pieceImage = new Image(Objects.requireNonNull(getClass().getResourceAsStream(sourceRootV2 + "w" + pieceNames[col] + ".png")));
                 squares[0][col].setGraphic(new ImageView(pieceImage));
-                pieceImage = new Image(Objects.requireNonNull(getClass().getResourceAsStream(sourceRoot + "w" + pawnName + ".png")));
+                pieceImage = new Image(Objects.requireNonNull(getClass().getResourceAsStream(sourceRootV2 + "w" + pawnName + ".png")));
                 squares[1][col].setGraphic(new ImageView(pieceImage));
             }
         }

@@ -15,7 +15,7 @@ public class MainApp extends Application {
 //        FXMLLoader loader = new FXMLLoader(getClass().getResource("chess/start-page.fxml"));
         Parent root = loader.load();
 
-        Scene scene = new Scene(root, 350, 205);
+        Scene scene = new Scene(root, 350, 300);
         stage.setTitle("Шахаты: Стартовое меню");
         stage.setScene(scene);
 
