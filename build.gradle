@@ -3,6 +3,7 @@ plugins {
     id 'application'
     id 'org.openjfx.javafxplugin' version '0.0.13'
     id 'org.beryx.jlink' version '2.25.0'
+    id 'com.gluonhq.gluonfx-gradle-plugin' version '1.0.22'
 }
 
 group 'com.javafx'
@@ -14,8 +15,8 @@ repositories {
 
 ext {
     junitVersion = '5.9.2'
+    ngrokVersion = '2.6.0'
 }
-
 sourceCompatibility = '17'
 targetCompatibility = '17'
 
@@ -25,7 +26,7 @@ tasks.withType(JavaCompile) {
 
 application {
     mainModule = 'com.javafx.semestrovka'
-    mainClass = 'com.javafx.semestrovka.HelloApplication'
+    mainClass = 'com.javafx.semestrovka.MainApp'
 }
 
 javafx {
@@ -33,9 +34,13 @@ javafx {
     modules = ['javafx.controls', 'javafx.fxml']
 }
 
-dependencies {
-    implementation('org.kordamp.bootstrapfx:bootstrapfx-core:0.4.0')
+def ngrokVersion = '0.5.0'
 
+dependencies {
+    implementation 'com.google.auth:google-auth-library-oauth2-http:1.11.0'
+    implementation "org.yaml:snakeyaml:2.2"
+    implementation 'com.google.code.gson:gson:2.10.1'
+    implementation 'com.github.alexdlaird:java-ngrok:2.2.5'
     testImplementation("org.junit.jupiter:junit-jupiter-api:${junitVersion}")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:${junitVersion}")
 //    implementation 'org.mindrot:jbcrypt:0.4'
@@ -52,6 +57,15 @@ jlink {
         name = 'app'
     }
 }
+
+//gluonfx {
+//    mainClass = 'com.javafx.semestrovka.MainApp'
+//    jpackage {
+//        image {
+//            name = 'Cheeeseee'
+//        }
+//    }
+//}
 
 jlinkZip {
     group = 'distribution'

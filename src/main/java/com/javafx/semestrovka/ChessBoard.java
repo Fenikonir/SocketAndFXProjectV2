@@ -1,7 +1,9 @@
 package com.javafx.semestrovka;
 
+import com.google.gson.Gson;
 import com.javafx.semestrovka.chess.ChessBoardInterface;
 import com.javafx.semestrovka.chess.ChessMoves;
+import com.javafx.semestrovka.chess.ChessConnection;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -13,29 +15,22 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.GridPane;
 import javafx.stage.Stage;
-
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
-import java.net.Socket;
-import java.net.SocketException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
+import java.io.*;
+import java.net.*;
+import java.util.*;
+import java.util.concurrent.ExecutionException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
 
 public class ChessBoard extends Application implements ChessBoardInterface {
     public ChessBoard(String result, String skin) {
         this.result = result;
         sourceRootV2 = String.format(sourceRoot, skin);
     }
+    private ChessConnection chessConnection;
     private Stage gameStage = null;
     private String result;
-    private Socket socket;
-    private PrintWriter out;
-    private BufferedReader in;
     private boolean gameStarted = false;
     public String name = "Player";
     private final String sourceRootV2;
@@ -63,16 +58,24 @@ public class ChessBoard extends Application implements ChessBoardInterface {
 
     private void connectToServer() {
         try {
-            socket = new Socket("127.0.0.1", 1234);
-            out = new PrintWriter(socket.getOutputStream(), true);
-            in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            chessConnection = ChessConnection.getFirebase();
+//            chessConnection = new ChessConnection();
+            chessConnection.getSocket();
+
+        } catch (ConnectException connectException) {
+            chessConnection.setConnectionSuccessful(false);
+            showAlert("Шоколадки", "Нет соединения с сервером");
         } catch (IOException e) {
             e.printStackTrace();
+        } catch (ExecutionException e) {
+            throw new RuntimeException(e);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
         }
     }
 
     private void sendMessageToServer(String message) {
-        out.println(message);
+        chessConnection.getOut().println(message);
     }
 
     private void receiveMessages() {
@@ -81,7 +84,7 @@ public class ChessBoard extends Application implements ChessBoardInterface {
         try {
             String message;
             try {
-                while (!socket.isClosed() && (message = in.readLine()) != null) {
+                while (!chessConnection.getSocket().isClosed() && (message = chessConnection.getIn().readLine()) != null) {
                     System.out.println("Received from server: " + message);
                     Matcher matcher = pattern.matcher(message);
 
@@ -119,8 +122,8 @@ public class ChessBoard extends Application implements ChessBoardInterface {
 
     private void closeConnection() {
         try {
-            if (socket != null && !socket.isClosed()) {
-                socket.close();
+            if (chessConnection.getSocket() != null && !chessConnection.getSocket().isClosed()) {
+                chessConnection.getSocket().close();
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -136,32 +139,34 @@ public class ChessBoard extends Application implements ChessBoardInterface {
         connectToServer();
 
         // Wait for "START_GAME" signal from the server
-        new Thread(() -> {
-            try {
-                String serverMessage;
-                out.println(result);
-                while ((serverMessage = in.readLine()) != null) {
+        if (chessConnection.isConnectionSuccessful()) {
+            new Thread(() -> {
+                try {
+                    String serverMessage;
+                    chessConnection.getOut().println(result);
+                    while ((serverMessage = chessConnection.getIn().readLine()) != null) {
 //                    if ("GAME_START".equals(serverMessage)) {
 //                        gameStarted = true;
 //                        sendMessageToServer("Player");
 //                        Platform.runLater(this::startGame);
 //                        break;
 //                    }
-                    if (serverMessage.contains("GAME_START")) {
-                        char lastChar = serverMessage.charAt(serverMessage.length() - 1);
-                        System.out.println("Last character: " + lastChar);
-                        gameStarted = true;
-                        sendMessageToServer("Player");
-                        boolean c = 'B' != lastChar;
+                        if (serverMessage.contains("GAME_START")) {
+                            char lastChar = serverMessage.charAt(serverMessage.length() - 1);
+                            System.out.println("Last character: " + lastChar);
+                            gameStarted = true;
+                            sendMessageToServer("Player");
+                            boolean c = 'B' != lastChar;
 //                        Platform.runLater(() -> startGame(c));
-                        Platform.runLater(() -> startGame(c));
-                        break;
+                            Platform.runLater(() -> startGame(c));
+                            break;
+                        }
                     }
+                } catch (IOException e) {
+                    e.printStackTrace();
                 }
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }).start();
+            }).start();
+        }
     }
 
     public void startGame(boolean wB) {

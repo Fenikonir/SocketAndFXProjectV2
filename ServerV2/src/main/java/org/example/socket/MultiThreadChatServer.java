@@ -1,17 +1,17 @@
-package com.javafx.semestrovka.socket;
+package org.example.socket;
 
 import com.github.alexdlaird.ngrok.NgrokClient;
-import com.github.alexdlaird.ngrok.conf.JavaNgrokConfig;
 import com.github.alexdlaird.ngrok.protocol.CreateTunnel;
-import com.github.alexdlaird.ngrok.protocol.Region;
 import com.github.alexdlaird.ngrok.protocol.Tunnel;
-import com.google.gson.Gson;
+import org.example.WriteToFirebase;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -27,10 +27,11 @@ public class MultiThreadChatServer {
     private static List<Room> rooms = new ArrayList<>();
 
     public static void main(String[] args) {
-        try (ServerSocket serverSocket = new ServerSocket(4321)) {
+        int port = 8878;
+        try (ServerSocket serverSocket = new ServerSocket(port)) {
             Thread.sleep(2000);
-            System.out.println("Chat server started on port 1234");
-            String ngrokUrl = exposeServer(4321);
+            System.out.println("Chat server started on port " + port);
+            String ngrokUrl = exposeServer(port);
             System.out.println("Ngrok URL: " + ngrokUrl);
 
             while (true) {
@@ -68,7 +69,7 @@ public class MultiThreadChatServer {
             }
         } catch (IOException e) {
             e.printStackTrace();
-        } catch (InterruptedException e) {
+        } catch (InterruptedException | URISyntaxException e) {
             throw new RuntimeException(e);
         }
     }
@@ -97,21 +98,29 @@ public class MultiThreadChatServer {
 //        }
     }
 
-    public static String exposeServer(int localPort) throws IOException, InterruptedException {
+    public static String exposeServer(int localPort) throws IOException, InterruptedException, URISyntaxException {
         // Команда для запуска ngrok и трансляции локального сервера
         String killngrok = "taskkill /F /IM ngrok.exe";
         ProcessBuilder killngrokProcessBuilder = new ProcessBuilder("cmd.exe", "/c", killngrok);
         Process killngrokProcess = killngrokProcessBuilder.start();
         killngrokProcess.waitFor(); // Ждем завершения процесса
-        System.out.println(Gson.class);
 
 //        JavaNgrokConfig javaNgrokConfig = new JavaNgrokConfig.Builder().withAuthToken("1ptIccyXSH6S1W8LmLkRJpnyb5x_83o4kwwUjTkXxDeX7njwr").withRegion(Region.EU).build();
         final NgrokClient ngrokClient = new NgrokClient.Builder().build();
         CreateTunnel createTunnel = new CreateTunnel.Builder()
                 .withProto(TCP)
-                .withAddr(4321)
+                .withAddr(localPort)
                 .build();
         Tunnel tunnel = ngrokClient.connect(createTunnel);
+        System.out.println(tunnel.getPublicUrl());
+        URI uri = new URI(tunnel.getPublicUrl());
+        String host = uri.getHost();
+        System.out.println("Host: " + host);
+
+        // Получение порта
+        int port = uri.getPort();
+        System.out.println("Port: " + port);
+        WriteToFirebase.write(host, port);
 
         // Create a tunnel
         String ngrokUrl = null;
