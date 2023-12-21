@@ -71,6 +71,14 @@ public class MultiThreadChatServer {
             e.printStackTrace();
         } catch (InterruptedException | URISyntaxException e) {
             throw new RuntimeException(e);
+        } finally {
+            try {
+                killNgrok();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 
@@ -99,12 +107,7 @@ public class MultiThreadChatServer {
     }
 
     public static String exposeServer(int localPort) throws IOException, InterruptedException, URISyntaxException {
-        // Команда для запуска ngrok и трансляции локального сервера
-        String killngrok = "taskkill /F /IM ngrok.exe";
-        ProcessBuilder killngrokProcessBuilder = new ProcessBuilder("cmd.exe", "/c", killngrok);
-        Process killngrokProcess = killngrokProcessBuilder.start();
-        killngrokProcess.waitFor(); // Ждем завершения процесса
-
+        killNgrok();
 //        JavaNgrokConfig javaNgrokConfig = new JavaNgrokConfig.Builder().withAuthToken("1ptIccyXSH6S1W8LmLkRJpnyb5x_83o4kwwUjTkXxDeX7njwr").withRegion(Region.EU).build();
         final NgrokClient ngrokClient = new NgrokClient.Builder().build();
         CreateTunnel createTunnel = new CreateTunnel.Builder()
@@ -171,5 +174,13 @@ public class MultiThreadChatServer {
             return matcher.group(1);
         }
         return null;
+    }
+
+    public static void killNgrok() throws IOException, InterruptedException {
+        // Команда для запуска ngrok и трансляции локального сервера
+        String killngrok = "taskkill /F /IM ngrok.exe";
+        ProcessBuilder killngrokProcessBuilder = new ProcessBuilder("cmd.exe", "/c", killngrok);
+        Process killngrokProcess = killngrokProcessBuilder.start();
+        killngrokProcess.waitFor(); // Ждем завершения процесса
     }
 }

@@ -1,8 +1,3 @@
-pluginManagement {
-    repositories {
-        gradlePluginPortal()
-    }
-}
 rootProject.name = "semestrovka"
 include 'untitled'
 include 'server'

@@ -1,32 +1,23 @@
 package com.javafx.semestrovka;
 
-import com.javafx.semestrovka.classwork.SliderApplication;
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.image.Image;
 import javafx.stage.Stage;
+
 
 public class MainApp extends Application {
 
     @Override
     public void start(Stage stage) throws Exception {
         FXMLLoader loader = new FXMLLoader(MainApp.class.getResource("chess/start-page.fxml"));
-//        FXMLLoader loader = new FXMLLoader(getClass().getResource("chess/start-page.fxml"));
         Parent root = loader.load();
-
         Scene scene = new Scene(root, 350, 300);
-        stage.setTitle("Шахаты: Стартовое меню");
+        stage.setTitle("Шахматы: Стартовое меню");
         stage.setScene(scene);
-
-//        scene.widthProperty().addListener((observableValue, oldWidth, newWidth) -> {
-//            System.out.println("Ширина окна: " + newWidth);
-//        });
-//
-//        scene.heightProperty().addListener((observableValue, oldHeight, newHeight) -> {
-//            System.out.println("Высота окна: " + newHeight);
-//        });
-
+        stage.getIcons().add(new Image("/com/javafx/semestrovka/chess/chess_pawn_game_icon_231432.png"));
         stage.show();
     }
 

@@ -1,7 +1,7 @@
 package com.javafx.semestrovka;
 
-public class ChessGame {
+public class MainLauncher {
     public static void main(String[] args) {
-        ChessBoard.main(args);
+        MainApp.main(args);
     }
 }

@@ -10,33 +10,34 @@ public class ChessMoves {
     public ChessMoves(ChessBoard chessBoard) {
         this.chessBoard = chessBoard;
     }
-    public List<int[]> getUniversalMoves(String type, int row, int col) {
+    public String[][] dream = null;
+    public List<int[]> getUniversalMoves(boolean need, String[][] pieces, String type, int row, int col) {
         if ("bP".equals(type)) {
-            return getPawnMoves(row, col, false);
+            return getPawnMoves(need,pieces, row, col, false);
         } else if ("wP".equals(type)) {
-            return getPawnMoves(row, col, true);
+            return getPawnMoves(need,pieces, row, col, true);
         } else if (type.contains("N")) {
-            return getKnightMoves(row, col);
+            return getKnightMoves(need,row, col);
         } else if (type.contains("B")) {
-            return getBishopMoves(row, col);
+            return getBishopMoves(need,pieces, row, col);
         } else if (type.contains("R")) {
-            return getRookMoves(row, col);
+            return getRookMoves(need,pieces, row, col);
         } else if (type.contains("Q")) {
-            return getQueenMoves(row, col);
+            return getQueenMoves(need,pieces, row, col);
         } else if (type.contains("K")) {
-            return getKingMoves(row, col);
+            return getKingMoves(need,pieces, row, col);
         }
 
         throw new IllegalArgumentException("Unknown piece type: " + type);
     }
 
-    public List<int[]> getPawnMoves(int row, int col, boolean isWhite) {
+    public List<int[]> getPawnMoves(Boolean need,String[][] pieces, int row, int col, boolean isWhite) {
         List<int[]> moves = new ArrayList<>();
         int direction = isWhite ? -1 : 1;
 
         // Вперед
         int newRow = row + direction;
-        if (isValidSquare(newRow, col) && !isOccupied(newRow, col)) {
+        if (isValidSquare(newRow, col) && !isOccupied(pieces, newRow, col)) {
             moves.add(new int[]{newRow, col});
         }
 
@@ -44,7 +45,7 @@ public class ChessMoves {
         int initialRow = isWhite ? 6 : 1;
         if (row == initialRow) {
             int doubleMoveRow = row + 2 * direction;
-            if (isValidSquare(doubleMoveRow, col) && !isOccupied(doubleMoveRow, col)) {
+            if (isValidSquare(doubleMoveRow, col) && !isOccupied(pieces, doubleMoveRow, col)) {
                 moves.add(new int[]{doubleMoveRow, col});
             }
         }
@@ -52,22 +53,21 @@ public class ChessMoves {
         // Диагональные атаки
         int[] attackCols = {col - 1, col + 1};
         for (int attackCol : attackCols) {
-            if (isValidSquare(newRow, attackCol) && isOccupied(newRow, attackCol) && isOpponentPiece(row, col, newRow, attackCol)) {
+            if (isValidSquare(newRow, attackCol) && isOccupied(pieces, newRow, attackCol) && isOpponentPiece(pieces, row, col, newRow, attackCol)) {
                 moves.add(new int[]{newRow, attackCol});
             }
         }
-
-        return moves;
+        return movesValidateOnCheck(need, row, col, moves);
     }
 
-    private boolean isOpponentPiece(int row, int col, int targetRow, int targetCol) {
+    private boolean isOpponentPiece(String[][] pieces, int row, int col, int targetRow, int targetCol) {
         // Проверка, является ли фигура на заданных координатах противниковой
-        boolean isWhite = chessBoard.isWhitePiece(row, col);
-        return isWhite != chessBoard.isWhitePiece(targetRow, targetCol);
+        boolean isWhite = isWhitePiece(pieces, row, col);
+        return isWhite != isWhitePiece(pieces, targetRow, targetCol);
     }
 
 
-    public List<int[]> getKnightMoves(int row, int col) {
+    public List<int[]> getKnightMoves(boolean need,int row, int col) {
         List<int[]> moves = new ArrayList<>();
 
         int[][] knightMoves = {
@@ -85,10 +85,10 @@ public class ChessMoves {
             }
         }
 
-        return moves;
+        return movesValidateOnCheck(need, row, col, moves);
     }
 
-    public List<int[]> getRookMoves(int row, int col) {
+    public List<int[]> getRookMoves(boolean need,String[][] pieces, int row, int col) {
         List<int[]> moves = new ArrayList<>();
 
         // Вертикаль и горизонталь
@@ -102,7 +102,7 @@ public class ChessMoves {
             int newCol = col + move[1];
             while (isValidSquare(newRow, newCol)) {
                 moves.add(new int[]{newRow, newCol});
-                if (isOccupied(newRow, newCol)) {
+                if (isOccupied(pieces, newRow, newCol)) {
                     break; // Stop if there is a piece in the way
                 }
                 newRow += move[0];
@@ -110,10 +110,10 @@ public class ChessMoves {
             }
         }
 
-        return moves;
+        return movesValidateOnCheck(need, row, col, moves);
     }
 
-    public List<int[]> getBishopMoves(int row, int col) {
+    public List<int[]> getBishopMoves(boolean need,String[][] pieces, int row, int col) {
         List<int[]> moves = new ArrayList<>();
 
         // Диагонали
@@ -127,7 +127,7 @@ public class ChessMoves {
             int newCol = col + move[1];
             while (isValidSquare(newRow, newCol)) {
                 moves.add(new int[]{newRow, newCol});
-                if (isOccupied(newRow, newCol)) {
+                if (isOccupied(pieces, newRow, newCol)) {
                     break; // Stop if there is a piece in the way
                 }
                 newRow += move[0];
@@ -135,43 +135,35 @@ public class ChessMoves {
             }
         }
 
-        return moves;
+        return movesValidateOnCheck(need, row, col, moves);
     }
 
 
-    private boolean isOccupied(int row, int col) {
-        // Проверка, занята ли клетка фигурой
-        return chessBoard.isOccupied(row, col);
+    public boolean isOccupied(String[][] pieces, int row, int col) {
+        return pieces[row][col] != null;
     }
 
-
-    public List<int[]> getQueenMoves(int row, int col) {
-        List<int[]> moves = new ArrayList<>();
-
-        // Комбинация ходов слона и ладьи
-        moves.addAll(getBishopMoves(row, col));
-        moves.addAll(getRookMoves(row, col));
-
-        return moves;
-    }
-
-    public boolean isCheckCurrentPiece(String type, int row, int col) {
-        List<int[]> moves = getUniversalMoves(type, row, col);
-        for (int[] move: moves) {
-            if (isOccupied(move[0], move[1])) {
-                if (chessBoard.pieces[move[0]][move[1]].contains("K") && type.charAt(0) != chessBoard.pieces[move[0]][move[1]].charAt(0)) {
-                    System.out.println("Check for: " + chessBoard.pieces[move[0]][move[1]]);
-                    return true;
-                }
-            }
+    public boolean isWhitePiece(String[][] pieces, int row, int col) {
+        if (isOccupied(pieces, row, col)) {
+            return pieces[row][col].contains("w");
         }
         return false;
     }
 
-    public boolean isCheckByKing(String type, int row, int col) {
+
+    public List<int[]> getQueenMoves(boolean need,String[][] pieces, int row, int col) {
+        List<int[]> moves = new ArrayList<>();
+
+        // Комбинация ходов слона и ладьи
+        moves.addAll(getBishopMoves(need,pieces, row, col));
+        moves.addAll(getRookMoves(need,pieces, row, col));
+
+        return movesValidateOnCheck(need, row, col, moves);
+    }
+    public boolean isCheckByKing(boolean need, String[][] pieces, String type, int row, int col) {
         // Find the opponent's moves
-        boolean isWhite = chessBoard.isWhitePiece(row, col);
-        List<int[]> opponentMoves = getAllMoves(!isWhite);
+        boolean isWhite = isWhitePiece(pieces, row, col);
+        List<int[]> opponentMoves = getAllMoves(need, pieces, !isWhite);
 
         // Check if any opponent's move targets the king's position
         for (int[] move : opponentMoves) {
@@ -183,9 +175,7 @@ public class ChessMoves {
 
         return false;
     }
-
-
-    public List<int[]> getKingMoves(int row, int col) {
+    public List<int[]> getKingMoves(boolean need,String[][] pieces, int row, int col) {
         List<int[]> moves = new ArrayList<>();
 
         // Все возможные соседние клетки
@@ -213,76 +203,113 @@ public class ChessMoves {
         }
 
 
-        return moves;
+        return movesValidateOnCheck(need, row, col, moves);
     }
 
-
-    // Другие функции для других фигур могут быть добавлены аналогичным образом
+    public List<int[]> moveValidate(List<int[]> moves, boolean isWhite) {
+        List<int[]> validatedMoves = new ArrayList<>();
+        for (int[] coordinates : moves) {
+            String pieceType = chessBoard.pieces[coordinates[0]][coordinates[1]];
+            if (pieceType != null) {
+                if (isWhite && pieceType.contains("b") || !isWhite && pieceType.contains("w")) {
+                    validatedMoves.add(coordinates);
+                }
+            } else {
+                validatedMoves.add(coordinates);
+            }
+        }
+        return validatedMoves;
+    }
 
     private boolean isValidSquare(int row, int col) {
         return row >= 0 && row < 8 && col >= 0 && col < 8;
     }
 
-    public boolean isCheckCurrentPiece(int kingRow, int kingCol, boolean isWhite) {
-        List<int[]> opponentMoves = getAllMoves(!isWhite);
-        for (int[] move : opponentMoves) {
-            if (move[0] == kingRow && move[1] == kingCol) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    public boolean isCheckmate(int kingRow, int kingCol, boolean isWhite) {
-        // Check if the king is in check
-        if (!isCheckCurrentPiece(kingRow, kingCol, isWhite)) {
-            return false;
-        }
-
-        // Check if the king can escape to any square
-        List<int[]> kingMoves = getKingMoves(kingRow, kingCol);
-        for (int[] move : kingMoves) {
-            if (!isCheckCurrentPiece(move[0], move[1], isWhite)) {
-                return false;
-            }
-        }
-
-        // Check if any piece can block or capture the attacking piece
-        List<int[]> allMoves = getAllMoves(isWhite);
-        for (int[] move : allMoves) {
-            List<int[]> moves = getUniversalMoves(chessBoard.pieces[move[0]][move[1]], move[0], move[1]);
-            moves.removeIf(m -> m[0] == kingRow && m[1] == kingCol);
-            for (int[] blockingMove : moves) {
-                if (!isCheckCurrentPiece(blockingMove[0], blockingMove[1], isWhite)) {
-                    return false;
-                }
-            }
-        }
-
-        return true;
-    }
-
-    private List<int[]> getAllMoves(boolean isWhite) {
+    private List<int[]> getAllMoves(boolean need, String[][] pieces, boolean isWhite) {
         List<int[]> allMoves = new ArrayList<>();
         for (int row = 0; row < 8; row++) {
+
             for (int col = 0; col < 8; col++) {
-                if (isOccupied(row, col) && chessBoard.isWhitePiece(row, col) == isWhite) {
-                    String pieceType = chessBoard.pieces[row][col];
-                    allMoves.addAll(getUniversalMoves(pieceType, row, col));
+                if (isOccupied(pieces, row, col) && isWhitePiece(pieces, row, col) == isWhite) {
+                    String pieceType = pieces[row][col];
+                    allMoves.addAll(getUniversalMoves( need, pieces, pieceType, row, col));
                 }
             }
         }
         return allMoves;
     }
 
+    public boolean[] isCheck(boolean need, String[][] pieces) {
+        int[] whiteKingPosition = findKingPosition(pieces, true);
+        int[] blackKingPosition = findKingPosition(pieces, false);
+        if (whiteKingPosition == null || blackKingPosition == null) {
+            return new boolean[]{false, false};
+        }
+        if (isCheckByKing(need, pieces, "wK", whiteKingPosition[0], whiteKingPosition[1])) {
+            return new boolean[]{true, true};
+        } else if (isCheckByKing(need, pieces, "bK", blackKingPosition[0], blackKingPosition[1]))
+            return new boolean[]{true, false};
+        return new boolean[]{false, false};
+    }
 
-    public void main(String[] args) {
-        // Пример использования
-        List<int[]> pawnMoves = getPawnMoves(1, 2, true);
-        System.out.println("Pawn moves: " + pawnMoves);
+    private int[] findKingPosition(String[][] pieces, boolean isWhite) {
+        for (int row = 0; row < 8; row++) {
+            for (int col = 0; col < 8; col++) {
+                if (isOccupied(pieces, row, col) && isWhitePiece(pieces, row, col) == isWhite && pieces[row][col].equals((isWhite ? "wK" : "bK"))) {
+                    return new int[]{row, col};
+                }
+            }
+        }
+        return null;
+    }
 
-        List<int[]> knightMoves = getKnightMoves(3, 3);
-        System.out.println("Knight moves: " + knightMoves);
+    public List<int[]> movesValidateOnCheck(boolean need, int row, int col, List<int[]> withoutChecking) {
+        if (need) {
+            List<int[]> sortedList = new ArrayList<>();
+            for (int[] move : withoutChecking) {
+                if (moveValidateOnCheck(new int[]{row, col}, move)) {
+                    sortedList.add(move);
+                }
+            }
+            return sortedList;
+        }
+        return withoutChecking;
+    }
+
+    public boolean moveValidateOnCheck(int[] oldCoordinate, int[] newCoordinate) {
+        dream = deepCopy(chessBoard.pieces);
+        // Make a copy of the current board state
+
+        // Perform the move on the temporary board
+        String movedPiece = dream[oldCoordinate[0]][oldCoordinate[1]];
+        dream[newCoordinate[0]][newCoordinate[1]] = movedPiece;
+        dream[oldCoordinate[0]][oldCoordinate[1]] = null;
+
+        // Check if the king is in check after the move
+        int[] kingCoordinates = findKingPosition(dream, movedPiece.contains("w"));
+        if (kingCoordinates != null) {
+            boolean isKingInCheck = isCheckByKing(false, dream, movedPiece.contains("w") ? "wK" : "bK", kingCoordinates[0], kingCoordinates[1]);
+            return !isKingInCheck;
+        }
+
+        return false;
+    }
+
+    private String[][] deepCopy(String[][] original) {
+        if (original == null) {
+            return null;
+        }
+
+        int rows = original.length;
+        int cols = original[0].length;
+
+        String[][] copy = new String[rows][cols];
+
+        for (int i = 0; i < rows; i++) {
+            System.arraycopy(original[i], 0, copy[i], 0, cols);
+        }
+
+        return copy;
     }
 }
 

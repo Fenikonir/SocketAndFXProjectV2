@@ -1,6 +1,5 @@
 package com.javafx.semestrovka;
 
-import com.google.gson.Gson;
 import com.javafx.semestrovka.chess.ChessBoardInterface;
 import com.javafx.semestrovka.chess.ChessMoves;
 import com.javafx.semestrovka.chess.ChessConnection;
@@ -222,6 +221,7 @@ public class ChessBoard extends Application implements ChessBoardInterface {
             Scene scene = new Scene(chessBoard, 720, 720);
             gameStage.setScene(scene);
             gameStage.setResizable(false);
+            gameStage.getIcons().add(new Image("/com/javafx/semestrovka/chess/chess_pawn_game_icon_231432.png"));
             gameStage.setOnCloseRequest(event -> {
                 closeConnection();
                 Platform.exit();
@@ -273,18 +273,19 @@ public class ChessBoard extends Application implements ChessBoardInterface {
         if (iAmWhite == nowIsWhite) {
             if (selectedRow == -1 && selectedCol == -1) {
                 if (pieces[row][col] != null) {
-                    boolean isWhite = isWhitePiece(row, col);
+                    boolean isWhite = chessMoves.isWhitePiece(pieces, row, col);
                     if ((nowIsWhite && isWhite) || (!nowIsWhite && !isWhite)) {
                         selectedRow = row;
                         selectedCol = col;
 
                         String type = pieces[row][col];
-                        moves = chessMoves.getUniversalMoves(type, row, col);
+                        moves = chessMoves.getUniversalMoves(true, pieces, type, row, col);
                         assert type != null;
-                        moveValidate(type.contains("w"));
-                        colored(true, 0, 0);
+                        moves = chessMoves.moveValidate(moves, type.contains("w"));
                         if (moves.isEmpty()) {
                             clearSelection();
+                        } else {
+                            colored(true, 0, 0);
                         }
                     }
                 }
@@ -304,7 +305,7 @@ public class ChessBoard extends Application implements ChessBoardInterface {
         isEaten(row, col);
         placePiece(row, col, local);
         colored(false, row, col);
-        nowCheck(row, col, local);
+        nowCheck(false,row, col, local);
         nowIsWhite = !nowIsWhite;
         oldStartRow = selectedRow;
         oldStartCol = selectedCol;
@@ -322,21 +323,6 @@ public class ChessBoard extends Application implements ChessBoardInterface {
         } else {
             gameStage.setTitle("Шахматы: Ход соперника");
         }
-    }
-
-    private void moveValidate(boolean isWhite) {
-        List<int[]> validatedMoves = new ArrayList<>();
-        for (int[] coordinates : moves) {
-            String pieceType = pieces[coordinates[0]][coordinates[1]];
-            if (pieceType != null) {
-                if (isWhite && pieceType.contains("b") || !isWhite && pieceType.contains("w")) {
-                    validatedMoves.add(coordinates);
-                }
-            } else {
-                validatedMoves.add(coordinates);
-            }
-        }
-        moves = validatedMoves;
     }
 
     private void isEaten(int row, int col) {
@@ -380,32 +366,13 @@ public class ChessBoard extends Application implements ChessBoardInterface {
         }
     }
 
-    private boolean nowCheck(int row, int col, boolean local) {
-        String selestPiece = pieces[row][col];
-        boolean isKing = pieces[row][col].contains("K");
-        boolean isCheck = isKing ? chessMoves.isCheckByKing(selestPiece, row, col) : chessMoves.isCheckCurrentPiece(selestPiece, row, col);
-        if (isCheck) {
-            String color = isKing ? (nowIsWhite ? "Белому" : "Черному") : (!nowIsWhite ? "Белому" : "Черному");
-            if (local) {
-                showAlert("Шах!", color + " Королю поставлен шах!");
-            } else {
-//                Platform.runLater(() -> {
-                    showAlert("Шах!", color + " Королю поставлен шах!");
-//                });
-            }
+    private boolean nowCheck(boolean need,int row, int col, boolean local) {
+        boolean[] isCheck = chessMoves.isCheck(need,pieces);
+        if (isCheck[0]) {
+            String color = isCheck[1]? "Белому": "Черному";
+            showAlert("Шах!", color + " Королю поставлен шах!");
         }
-//        else if (nowIsWhite) {
-//            isCheck = isCheckByKing("wK", kingCoordinates[0][0], kingCoordinates[0][1]);
-//            if (isCheck) {
-//                showAlert("Шах!", "Черному Королю поставлен шах!");
-//            }
-//        } else if (!nowIsWhite) {
-//            isCheck = isCheckByKing("bK", kingCoordinates[1][0], kingCoordinates[1][1]);
-//            if (isCheck) {
-//                showAlert("Шах!", "Белому Королю поставлен шах!");
-//            }
-//        }
-        return isCheck;
+        return isCheck[0];
     }
 
     private void placePiece(int targetRow, int targetCol, boolean local) {
@@ -426,13 +393,13 @@ public class ChessBoard extends Application implements ChessBoardInterface {
 
     public boolean canCastleKingside(int row, int col) {
         // Check if kingside castling is possible
-        return isWhitePiece(row, col) && !isOccupied(row, col + 1) && !isOccupied(row, col + 2)
+        return chessMoves.isWhitePiece(pieces, row, col) && !chessMoves.isOccupied(pieces, row, col + 1) && !chessMoves.isOccupied(pieces, row, col + 2)
                 && pieces[row][7] != null && pieces[row][7].equals("wR") /* Check if the rook has not moved */;
     }
 
     public boolean canCastleQueenside(int row, int col) {
         // Check if queenside castling is possible
-        return isWhitePiece(row, col) && !isOccupied(row, col - 1) && !isOccupied(row, col - 2) && !isOccupied(row, col - 3)
+        return chessMoves.isWhitePiece(pieces, row, col) && !chessMoves.isOccupied(pieces, row, col - 1) && !chessMoves.isOccupied(pieces, row, col - 2) && !chessMoves.isOccupied(pieces, row, col - 3)
                 && pieces[row][0] != null && pieces[row][0].equals("wR") /* Check if the rook has not moved */;
     }
 
@@ -458,17 +425,6 @@ public class ChessBoard extends Application implements ChessBoardInterface {
     private void clearSelection() {
         selectedRow = -1;
         selectedCol = -1;
-    }
-
-    public boolean isOccupied(int row, int col) {
-        return pieces[row][col] != null;
-    }
-
-    public boolean isWhitePiece(int row, int col) {
-        if (isOccupied(row, col)) {
-            return pieces[row][col].contains("w");
-        }
-        return false;
     }
 
     private void showAlert(String title, String content) {
