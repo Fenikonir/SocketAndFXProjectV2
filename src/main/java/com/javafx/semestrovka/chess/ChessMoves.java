@@ -7,6 +7,8 @@ import java.util.List;
 
 public class ChessMoves {
     private ChessBoard chessBoard;
+    private int checkRow;
+    private int checkCol;
     public ChessMoves(ChessBoard chessBoard) {
         this.chessBoard = chessBoard;
     }
@@ -160,7 +162,7 @@ public class ChessMoves {
 
         return movesValidateOnCheck(need, row, col, moves);
     }
-    public boolean isCheckByKing(boolean need, String[][] pieces, String type, int row, int col) {
+    public int[] isCheckByKing(boolean need, String[][] pieces, String type, int row, int col) {
         // Find the opponent's moves
         boolean isWhite = isWhitePiece(pieces, row, col);
         List<int[]> opponentMoves = getAllMoves(need, pieces, !isWhite);
@@ -169,11 +171,13 @@ public class ChessMoves {
         for (int[] move : opponentMoves) {
             if (move[0] == row && move[1] == col) {
                 System.out.println(type + " is in check!");
-                return true;
+                checkRow = move[3];
+                checkCol = move[4];
+                return new int[]{1, move[3], move[4]};
             }
         }
 
-        return false;
+        return new int[]{0};
     }
     public List<int[]> getKingMoves(boolean need,String[][] pieces, int row, int col) {
         List<int[]> moves = new ArrayList<>();
@@ -218,6 +222,9 @@ public class ChessMoves {
                 validatedMoves.add(coordinates);
             }
         }
+//        if (!validatedMoves.isEmpty()) {
+//            return movesValidateOnCheck(false, validatedMoves, );
+//        }
         return validatedMoves;
     }
 
@@ -232,7 +239,9 @@ public class ChessMoves {
             for (int col = 0; col < 8; col++) {
                 if (isOccupied(pieces, row, col) && isWhitePiece(pieces, row, col) == isWhite) {
                     String pieceType = pieces[row][col];
-                    allMoves.addAll(getUniversalMoves( need, pieces, pieceType, row, col));
+                    for (int[] i: getUniversalMoves( need, pieces, pieceType, row, col)) {
+                        allMoves.add(new int[]{i[0], i[1], pieceType.contains("k")? 1 : 0, row, col});
+                    }
                 }
             }
         }
@@ -245,12 +254,49 @@ public class ChessMoves {
         if (whiteKingPosition == null || blackKingPosition == null) {
             return new boolean[]{false, false};
         }
-        if (isCheckByKing(need, pieces, "wK", whiteKingPosition[0], whiteKingPosition[1])) {
+        if (isCheckByKing(need, pieces, "wK", whiteKingPosition[0], whiteKingPosition[1])[0] == 1) {
             return new boolean[]{true, true};
-        } else if (isCheckByKing(need, pieces, "bK", blackKingPosition[0], blackKingPosition[1]))
+        } else if (isCheckByKing(need, pieces, "bK", blackKingPosition[0], blackKingPosition[1])[0] == 1)
             return new boolean[]{true, false};
         return new boolean[]{false, false};
     }
+
+    public boolean isCheckmate(boolean need, String[][] pieces, boolean isWhite) {
+        // Находим позицию короля текущего игрока
+        int[] kingPosition = findKingPosition(pieces, isWhite);
+
+        // Если король не найден, то нет смысла продолжать
+        if (kingPosition == null) {
+            return true;
+        }
+
+        // Получаем все ходы короля
+        List<int[]> kingMoves = getKingMoves(need, pieces, kingPosition[0], kingPosition[1]);
+        kingMoves = moveValidate(kingMoves, isWhite);
+
+        // Проверяем каждый ход короля
+        for (int[] move : kingMoves) {
+            // Если ход короля валиден, и король может уйти от угрозы, то это не мат
+            if (moveValidateOnCheck(kingPosition, move) && !(isCheckByKing(need, pieces, isWhite ? "wK" : "bK", move[0], move[1])[0] == 1)) {
+                return false;
+            }
+        }
+
+        // Получаем все ходы союзных фигур
+        List<int[]> allyMoves = getAllMoves(need, pieces, isWhite);
+
+        // Проверяем каждый ход союзной фигуры
+        for (int[] move : allyMoves) {
+            // Если ход союзной фигуры может блокировать или съесть угрозу, то это не мат
+            if (move[2] == 0 && move[0] == checkRow && move[1] == checkCol) {
+                return false;
+            }
+        }
+
+        // Если ни один ход короля или союзных фигур не предотвращает угрозу и король находится под шахом, то это мат
+        return true;
+    }
+
 
     private int[] findKingPosition(String[][] pieces, boolean isWhite) {
         for (int row = 0; row < 8; row++) {
@@ -278,23 +324,26 @@ public class ChessMoves {
 
     public boolean moveValidateOnCheck(int[] oldCoordinate, int[] newCoordinate) {
         dream = deepCopy(chessBoard.pieces);
-        // Make a copy of the current board state
-
-        // Perform the move on the temporary board
         String movedPiece = dream[oldCoordinate[0]][oldCoordinate[1]];
-        dream[newCoordinate[0]][newCoordinate[1]] = movedPiece;
-        dream[oldCoordinate[0]][oldCoordinate[1]] = null;
+        if (movedPiece != null) {
+            dream[newCoordinate[0]][newCoordinate[1]] = movedPiece;
+            dream[oldCoordinate[0]][oldCoordinate[1]] = null;
 
-        // Check if the king is in check after the move
-        int[] kingCoordinates = findKingPosition(dream, movedPiece.contains("w"));
-        if (kingCoordinates != null) {
-            boolean isKingInCheck = isCheckByKing(false, dream, movedPiece.contains("w") ? "wK" : "bK", kingCoordinates[0], kingCoordinates[1]);
-            return !isKingInCheck;
+            // Check if the king is in check after the move
+            int[] kingCoordinates = findKingPosition(dream, movedPiece.contains("w"));
+            if (kingCoordinates != null && areOnSameLine(oldCoordinate[0], oldCoordinate[1], kingCoordinates[0], kingCoordinates[1])) {
+                boolean isKingInCheck = isCheckByKing(false, dream, movedPiece.contains("w") ? "wK" : "bK", kingCoordinates[0], kingCoordinates[1])[0] == 1;
+                return !isKingInCheck;
+            }
+            return true;
         }
 
         return false;
     }
 
+    private boolean areOnSameLine(int row1, int col1, int row2, int col2) {
+        return row1 == row2 || col1 == col2 || Math.abs(row1 - row2) == Math.abs(col1 - col2);
+    }
     private String[][] deepCopy(String[][] original) {
         if (original == null) {
             return null;

@@ -33,6 +33,7 @@ public class ChessBoard extends Application implements ChessBoardInterface {
     private boolean gameStarted = false;
     public String name = "Player";
     private final String sourceRootV2;
+    private boolean gameIsEnd = false;
     boolean iAmWhite;
     boolean nowIsWhite = true;
     public String[][] pieces = new String[8][8];
@@ -270,7 +271,7 @@ public class ChessBoard extends Application implements ChessBoardInterface {
 
 
     private void handleSquareClick(int row, int col) {
-        if (iAmWhite == nowIsWhite) {
+        if (!gameIsEnd && iAmWhite == nowIsWhite) {
             if (selectedRow == -1 && selectedCol == -1) {
                 if (pieces[row][col] != null) {
                     boolean isWhite = chessMoves.isWhitePiece(pieces, row, col);
@@ -323,6 +324,11 @@ public class ChessBoard extends Application implements ChessBoardInterface {
         } else {
             gameStage.setTitle("Шахматы: Ход соперника");
         }
+        if (gameIsEnd) {
+            String text = nowIsWhite == iAmWhite ? "Вы проиграли" : "Вы выиграли";
+            gameStage.setTitle("Шахматы: " + text);
+            closeConnection();
+        }
     }
 
     private void isEaten(int row, int col) {
@@ -369,7 +375,12 @@ public class ChessBoard extends Application implements ChessBoardInterface {
     private boolean nowCheck(boolean need,int row, int col, boolean local) {
         boolean[] isCheck = chessMoves.isCheck(need,pieces);
         if (isCheck[0]) {
-            String color = isCheck[1]? "Белому": "Черному";
+            String color = isCheck[1] == iAmWhite? "Вашему": "Вражескому";
+            boolean isCheckMate = chessMoves.isCheckmate(true, pieces, isCheck[1]);
+            if (isCheckMate) {
+                showAlert("Шах и мат!", color + " Королю поставлен мат!");
+                gameIsEnd = true;
+            }
             showAlert("Шах!", color + " Королю поставлен шах!");
         }
         return isCheck[0];
