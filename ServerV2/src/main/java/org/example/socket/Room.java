@@ -10,14 +10,13 @@ public class Room {
     private ClientHandler creator;
     private ClientHandler joiner;
     private CountDownLatch gameStartLatch;
-
-    public Room(int code, ClientHandler creator) {
+    public Room(int code) {
         this.code = code;
-        this.creator = creator;
         this.gameStartLatch = new CountDownLatch(2); // Initialize with the number of players needed
     }
 
     public Room() {
+        code = 0;
         this.gameStartLatch = new CountDownLatch(2); // Initialize in the default constructor as well
     }
 

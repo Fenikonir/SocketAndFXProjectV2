@@ -39,17 +39,17 @@ public class MultiThreadChatServer {
                 System.out.println("New client connected");
                 BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
                 String inputLine;
-                boolean f = false;
+                Response response = null;
                 while ((inputLine = in.readLine()) != null) {
-                    f = parseString(inputLine);
+                    response = parseString(inputLine);
                     break;
                 }
-                if (!f) {
+                if (!response.isCodeGame()) {
 
                     boolean added = false;
 
                     for (Room room : rooms) {
-                        if (room.isOpened()) {
+                        if (room.isOpened() && room.getCode() == 0) {
                             added = true;
                             ClientHandler clientHandler = new ClientHandler(clientSocket, room.getClientHandlers());
                             room.addJoiner(clientHandler);
@@ -61,10 +61,27 @@ public class MultiThreadChatServer {
                         }
                     }
                     if (!added) {
-                        createRoom(clientSocket);
+                        createRoom(response.code(), clientSocket);
                     }
 
 
+                } else {
+                    boolean added = false;
+                    for (Room room: rooms) {
+                        if (room.isOpened() && room.getCode() == response.code()) {
+                            added = true;
+                            ClientHandler clientHandler = new ClientHandler(clientSocket, room.getClientHandlers());
+                            room.addJoiner(clientHandler);
+                            clients.add(clientHandler);
+                            room.getCreator().setClients(List.of(room.getCreator(), room.getJoiner()));
+                            room.getJoiner().setClients(List.of(room.getCreator(), room.getJoiner()));
+                            clientHandler.start();
+                            room.startGame();
+                        }
+                    }
+                    if (!added) {
+                        createRoom(response.code(), clientSocket);
+                    }
                 }
             }
         } catch (IOException e) {
@@ -82,8 +99,8 @@ public class MultiThreadChatServer {
         }
     }
 
-    public static Room createRoom(Socket clientSocket) {
-        Room room = new Room();
+    public static Room createRoom(int code, Socket clientSocket) {
+        Room room = code != 0 ? new Room(code) : new Room();
         ClientHandler clientHandler = new ClientHandler(clientSocket, null);
         room.setCreator(clientHandler);
         clientHandler.setClients(List.of(clientHandler));
@@ -93,17 +110,12 @@ public class MultiThreadChatServer {
         return room;
     }
 
-    private static boolean parseString(String input) {
-        if (input.contains("true")){
-            return true;
+    private static Response parseString(String input) {
+        String[] parts = input.split(":");
+        if (parts.length == 4) {
+            return  new Response(Boolean.parseBoolean(parts[2]), parts[0], parts[1], Integer.parseInt(parts[3]));
         }
-        return false;
-//        String[] parts = input.split(":");
-//        if (parts.length == 4) {
-//            return parts;
-//        } else if (parts.length == 3) {
-//            return false; // Неправильный формат строки
-//        }
+        return new Response(false, "User", "password", 0);
     }
 
     public static String exposeServer(int localPort) throws IOException, InterruptedException, URISyntaxException {
@@ -124,42 +136,6 @@ public class MultiThreadChatServer {
         int port = uri.getPort();
         System.out.println("Port: " + port);
         WriteToFirebase.write(host, port);
-
-        // Create a tunnel
-        String ngrokUrl = null;
-//        try {
-//            Tunnel tunnel = ngrokClient.connect(createTunnel);
-//        } catch (Exception e) {
-//            String ngrokCommand = "ngrok tcp " + localPort;
-//            ProcessBuilder ngrokProcessBuilder = new ProcessBuilder("cmd.exe", "/c", ngrokCommand);
-//            Process ngrokProcess = ngrokProcessBuilder.start();
-//
-//            // Читаем вывод команды ngrok
-//            try (BufferedReader reader = new BufferedReader(new InputStreamReader(ngrokProcess.getInputStream()))) {
-//                List<String> lines = reader.lines().collect(Collectors.toList());
-//
-//                for (String line : lines) {
-//                    if (line.contains("ngrok tcp --remote-addr=")) {
-//                        Matcher matcher = remoteAddrPattern.matcher(line);
-//                        if (matcher.find()) {
-//                            System.out.println("Remote address: " + matcher.group(1));
-//                            System.out.println("Remote port: " + matcher.group(2));
-//                            break;
-//                        } else {
-//                            System.out.println("Remote address not found in command: " + line);
-//                        }
-//                    }
-//                }
-//            } catch (IOException er) {
-//                er.printStackTrace();
-//            } finally {
-//                try {
-//                    // Explicitly close the stream after reading
-//                    ngrokProcess.getInputStream().close();
-//                } catch (IOException er) {
-//                    er.printStackTrace();
-//                }
-//            }
             return null;
 
     }

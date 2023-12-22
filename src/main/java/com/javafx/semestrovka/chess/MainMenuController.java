@@ -1,13 +1,11 @@
 package com.javafx.semestrovka.chess;
 
+import com.github.alexdlaird.util.StringUtils;
 import com.javafx.semestrovka.ChessBoard;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
-import javafx.scene.control.ChoiceBox;
-import javafx.scene.control.Label;
-import javafx.scene.control.PasswordField;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.stage.Stage;
@@ -69,22 +67,29 @@ public class MainMenuController {
 
     @FXML
     private void onFastSearch() {
-        String result = getResult(false);
+        String result = getResult(false, 0);
         openChessBoard(result);
     }
 
     @FXML
     private void onCodeSearch() {
-        String result = getResult(true);
-        openChessBoard(result);
+        try {
+            int code = Integer.parseInt(numberField.getText());
+            String result = getResult(true, code);
+            openChessBoard(result);
+        } catch (Exception e) {
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            alert.setTitle("Некорректный код");
+            alert.setHeaderText(null);
+            alert.setContentText("Вы ввели некоректный код, попробуйте еще раз");
+            alert.showAndWait();
+        }
     }
 
-    private String getResult(boolean f) {
-        String login = loginField.getText();
-//        String password = PasswordHashingExample.hashPassword(passwordField.getText());
-        String password = "";
+    private String getResult(boolean f, int code) {
+        String login = StringUtils.isNotBlank(loginField.getText())? loginField.getText() : "User";
+        String password = StringUtils.isNotBlank(passwordField.getText())? passwordField.getText() : "password";
         String isFastSearch = String.valueOf(f);
-        String code = numberField.getText();
         return String.format("%s:%s:%s:%s", login, password, isFastSearch, code);
     }
 
